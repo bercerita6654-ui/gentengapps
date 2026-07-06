@@ -38,3 +38,18 @@ export interface HistoryItem {
   cart: CartItem[];
   total: number;
 }
+
+export interface FlyerCatalogItem {
+  id: string;
+  sku: string;
+  productName: string;
+  category: string;
+  merk: string;
+  unit: string;
+  price: number;
+  imageId: string; // row[19] - Gambar Story
+  lastUpdateStr: string; // row[20] - Last Update untuk Gambar Story
+  lastUpdateDate: Date;
+  productId: string; // matched product SKU / ID
+}
+

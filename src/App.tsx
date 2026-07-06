@@ -21,10 +21,19 @@ import {
   CheckCircle,
   ShoppingBag,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Calendar,
+  Sparkles,
+  Layers,
+  Filter,
+  Check,
+  Tag,
+  Clock,
+  Eye,
+  Share2
 } from 'lucide-react';
-import { Product, CartItem, HistoryItem, PriceTier } from './types';
-import { parseCSV, formatRupiah, formatNumber, parsePrice, getItemPrice, getProductImageUrl } from './utils/helpers';
+import { Product, CartItem, HistoryItem, PriceTier, FlyerCatalogItem } from './types';
+import { parseCSV, formatRupiah, formatNumber, parsePrice, getItemPrice, getProductImageUrl, parseDateStr, formatIndonesianDate } from './utils/helpers';
 import ScannerModal from './components/ScannerModal';
 import ThemeDropdown from './components/ThemeDropdown';
 import ProductDetailModal from './components/ProductDetailModal';
@@ -41,6 +50,11 @@ const STORAGE_CUSTOM_THEME_KEY = 'keranjangKuning_customTheme';
 export default function App() {
   // Products and Cart State
   const [products, setProducts] = useState<Product[]>([]);
+  const [flyers, setFlyers] = useState<FlyerCatalogItem[]>([]);
+  const [activeTab, setActiveTab] = useState<'shopping' | 'flyers'>('shopping');
+  const [flyersSearchTerm, setFlyersSearchTerm] = useState('');
+  const [flyersSelectedCategory, setFlyersSelectedCategory] = useState('');
+  const [selectedFlyer, setSelectedFlyer] = useState<FlyerCatalogItem | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   
   // Search & Filters state
@@ -257,11 +271,13 @@ export default function App() {
             const imgParsed = parseCSV(imgText);
 
             const imgMap: Record<string, string> = {};
+            const flyerList: FlyerCatalogItem[] = [];
             if (imgParsed.length > 0) {
               for (let i = 1; i < imgParsed.length; i++) {
                 const row = imgParsed[i];
                 const sku = row[0] ? row[0].toString().trim().toUpperCase() : null;
                 if (sku) {
+                  // Standard Product Main Image (Foto Produk, index 21)
                   let imageVal = row[21] ? row[21].toString().trim() : '';
                   if (!imageVal || imageVal === '-') {
                     const match = row.join(' ').match(/[-\w]{25,}/);
@@ -271,9 +287,42 @@ export default function App() {
                     if (match) imageVal = match[0];
                   }
                   if (imageVal) imgMap[sku] = imageVal;
+
+                  // Flyer/Poster Image (Gambar Story, Column 20, Index 19)
+                  let storyImageId = row[19] ? row[19].toString().trim() : '';
+                  if (storyImageId && storyImageId !== '-') {
+                    const match = storyImageId.match(/[-\w]{25,}/);
+                    if (match) storyImageId = match[0];
+                  }
+
+                  // Last Update date for story (Column 21, Index 20)
+                  const lastUpdateStr = row[20] ? row[20].toString().trim() : '';
+
+                  if (storyImageId && storyImageId !== '-') {
+                    const parsedDate = parseDateStr(lastUpdateStr);
+                    const name = row[2] ? row[2].toString().trim() : '';
+                    const price = parsePrice(row[10]);
+                    flyerList.push({
+                      id: `flyer-${sku}-${i}`,
+                      sku: row[0] ? row[0].toString().trim() : '',
+                      productName: name,
+                      category: row[4] ? row[4].toString().trim() : '',
+                      merk: row[6] ? row[6].toString().trim() : '',
+                      unit: row[3] ? row[3].toString().trim() : '',
+                      price,
+                      imageId: storyImageId,
+                      lastUpdateStr,
+                      lastUpdateDate: parsedDate,
+                      productId: sku, // SKU matches the product's SKU
+                    });
+                  }
                 }
               }
             }
+
+            // Sort flyerList by lastUpdateDate descending (newest first)
+            flyerList.sort((a, b) => b.lastUpdateDate.getTime() - a.lastUpdateDate.getTime());
+            setFlyers(flyerList);
 
             // Enrich products state
             setProducts((prev) =>
@@ -319,6 +368,22 @@ export default function App() {
       return matchSearch && matchCategory && matchBrand && matchStock;
     });
   }, [products, searchTerm, selectedCategory, selectedBrand, onlyAvailableStock]);
+
+  const filteredFlyers = useMemo(() => {
+    const queryWords = flyersSearchTerm.toLowerCase().trim().split(/\s+/).filter((w) => w.length > 0);
+    return flyers.filter((f) => {
+      let matchSearch = true;
+      if (queryWords.length > 0) {
+        matchSearch = queryWords.every(
+          (word) =>
+            f.productName.toLowerCase().includes(word) ||
+            f.sku.toLowerCase().includes(word)
+        );
+      }
+      const matchCategory = flyersSelectedCategory === '' || f.category === flyersSelectedCategory;
+      return matchSearch && matchCategory;
+    });
+  }, [flyers, flyersSearchTerm, flyersSelectedCategory]);
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const paginatedProducts = useMemo(() => {
@@ -430,6 +495,29 @@ export default function App() {
     }
   };
 
+  const handleViewFlyerDetail = (sku: string) => {
+    const product = products.find((p) => p.sku.toUpperCase() === sku.toUpperCase());
+    if (product) {
+      setActiveDetailProduct(product);
+      setIsDetailOpen(true);
+    } else {
+      const flyer = flyers.find((f) => f.sku.toUpperCase() === sku.toUpperCase());
+      if (flyer) {
+        setSelectedFlyer(flyer);
+      }
+    }
+  };
+
+  const handleAddFlyerToCart = (sku: string) => {
+    const product = products.find((p) => p.sku.toUpperCase() === sku.toUpperCase());
+    if (product) {
+      addToCart(product.id);
+      showToast(`Berhasil menambahkan ${product.nama} ke keranjang!`, 'success');
+    } else {
+      showToast('Produk tidak ditemukan di daftar stok utama.', 'error');
+    }
+  };
+
   // Load history item back to cart
   const handleLoadHistoryItem = (id: string) => {
     const item = historyData.find((h) => h.id === id);
@@ -449,6 +537,32 @@ export default function App() {
       const updated = historyData.filter((h) => h.id !== id);
       setHistoryData(updated);
       localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(updated));
+    }
+  };
+
+  const handleShareFlyer = async (flyer: FlyerCatalogItem) => {
+    try {
+      const response = await fetch(`https://lh3.googleusercontent.com/d/${flyer.imageId}=s0`);
+      const blob = await response.blob();
+      const file = new File([blob], `${flyer.productName.replace(/ /g, '_')}.jpg`, { type: 'image/jpeg' });
+      
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: flyer.productName,
+          text: `Promo: ${flyer.productName} - ${formatRupiah(flyer.price)}`
+        });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      showToast('Gagal membagikan flyer.', 'error');
     }
   };
 
@@ -620,8 +734,40 @@ export default function App() {
             </div>
           </div>
 
-          {/* Search, Filter and Product List */}
-          <div className="bg-white p-5 lg:p-6 rounded-2xl shadow-xs border border-gray-100 flex-1">
+          {/* Tab Selection */}
+          <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200 shadow-sm mb-1">
+            <button
+              onClick={() => setActiveTab('shopping')}
+              className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+                activeTab === 'shopping'
+                  ? 'bg-white text-primary-700 shadow-sm font-black border border-gray-100'
+                  : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <Store className="w-4.5 h-4.5" />
+              Daftar Produk Kasir
+            </button>
+            <button
+              onClick={() => setActiveTab('flyers')}
+              className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative ${
+                activeTab === 'flyers'
+                  ? 'bg-white text-primary-700 shadow-sm font-black border border-gray-100'
+                  : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <ImageIcon className="w-4.5 h-4.5" />
+              Katalog Flyer (4:5)
+              {flyers.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center font-black border-2 border-white shadow-xs animate-bounce">
+                  {flyers.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {activeTab === 'shopping' ? (
+            /* Search, Filter and Product List */
+            <div className="bg-white p-5 lg:p-6 rounded-2xl shadow-xs border border-gray-100 flex-1">
             <div className="flex flex-col mb-6 gap-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -930,6 +1076,268 @@ export default function App() {
               </div>
             )}
           </div>
+          ) : (
+            /* Katalog Flyer (4:5) View */
+            <div className="bg-white p-5 lg:p-6 rounded-2xl shadow-xs border border-gray-100 flex-1 flex flex-col gap-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                <div>
+                  <h2 className="text-lg font-black text-gray-800 flex items-center gap-2">
+                    <div className="bg-primary-100 text-primary-600 p-1.5 rounded-lg">
+                      <ImageIcon className="w-5 h-5" />
+                    </div>
+                    Katalog Flyer Produk
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Visual poster & flyer promosi dengan rasio 4:5 langsung dari stok list.
+                  </p>
+                </div>
+                
+                {/* Refresh button */}
+                <button
+                  onClick={() => loadProductData(true)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-primary-600 bg-primary-50 hover:bg-primary-100 px-3 py-1.5 rounded-lg transition-colors border border-primary-200 shadow-xs active-tap cursor-pointer self-start sm:self-auto"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Refresh
+                </button>
+              </div>
+
+              {/* Search & Category Filter for Flyers */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400">
+                    <Search className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    value={flyersSearchTerm}
+                    onChange={(e) => setFlyersSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none bg-gray-50/50 text-sm transition-all"
+                    placeholder="Cari flyer produk..."
+                  />
+                </div>
+
+                {availableCategories.length > 0 && (
+                  <div className="relative w-full sm:w-48 flex-shrink-0">
+                    <select
+                      value={flyersSelectedCategory}
+                      onChange={(e) => setFlyersSelectedCategory(e.target.value)}
+                      className="w-full text-sm border border-gray-200 rounded-xl py-2.5 px-3 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-400 transition-colors cursor-pointer outline-none shadow-xs"
+                    >
+                      <option value="">Semua Kategori</option>
+                      {availableCategories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Section Update Terbaru (Requirement 2) */}
+              {filteredFlyers.length > 0 && (
+                <div className="bg-gradient-to-r from-primary-50/50 to-orange-50/20 p-4 rounded-2xl border border-primary-100/60">
+                  <div className="flex items-center gap-2 mb-3.5">
+                    <Sparkles className="w-4.5 h-4.5 text-primary-600 animate-pulse" />
+                    <h3 className="text-xs font-extrabold text-primary-800 uppercase tracking-wider">
+                      Poster / Flyer Baru Diupdate
+                    </h3>
+                  </div>
+                  
+                  {/* We display the top 3 most recently updated flyers */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredFlyers.slice(0, 3).map((flyer) => {
+                      const matchedProduct = products.find(p => p.sku.toUpperCase() === flyer.sku.toUpperCase());
+                      const inCart = cart.some(item => item.product.id === matchedProduct?.id);
+                      
+                      return (
+                        <div key={`recent-${flyer.id}`} className="bg-white rounded-xl border border-primary-200/60 p-3 flex gap-3 shadow-xs hover:shadow-md transition-all">
+                          <div 
+                            onClick={() => handleViewFlyerDetail(flyer.sku)}
+                            className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer relative group border border-gray-100"
+                          >
+                            <img
+                              src={`https://lh3.googleusercontent.com/d/${flyer.imageId}`}
+                              alt={flyer.productName}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
+                          </div>
+                          
+                          <div className="flex-1 flex flex-col min-w-0 justify-between">
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="bg-primary-100 text-primary-800 text-[9px] px-1.5 py-0.5 rounded-md font-extrabold flex items-center gap-1 animate-pulse">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  NEW UPDATE
+                                </span>
+                              </div>
+                              <h4 
+                                onClick={() => handleViewFlyerDetail(flyer.sku)}
+                                className="text-xs font-bold text-gray-800 line-clamp-2 mt-1 cursor-pointer hover:text-primary-600 transition-colors"
+                              >
+                                {flyer.productName}
+                              </h4>
+                              <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                {formatIndonesianDate(flyer.lastUpdateDate)}
+                              </p>
+                            </div>
+                            
+                            <div className="flex items-center justify-between mt-2 pt-1 border-t border-gray-50">
+                              <span className="text-xs font-black text-primary-600">
+                                {formatRupiah(flyer.price)}
+                              </span>
+                              
+                              <button
+                                onClick={() => handleAddFlyerToCart(flyer.sku)}
+                                className={`p-1.5 rounded-lg border transition-all active-tap cursor-pointer ${
+                                  inCart
+                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                    : 'bg-primary-400 text-primary-900 border-primary-400 hover:bg-primary-500'
+                                }`}
+                                title="Tambah ke Keranjang"
+                              >
+                                <ShoppingCart className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Gallery Grid 4:5 */}
+              <div>
+                <div className="flex items-center justify-between mb-4 border-t border-gray-50 pt-4">
+                  <h3 className="text-sm font-extrabold text-gray-700 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-gray-400" />
+                    Semua Flyer ({filteredFlyers.length})
+                  </h3>
+                </div>
+
+                {filteredFlyers.length === 0 ? (
+                  <div className="py-16 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                    <ImageIcon className="w-14 h-14 mb-3 text-gray-300" />
+                    <p className="text-sm font-semibold">Flyer tidak ditemukan.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {filteredFlyers.map((flyer) => {
+                      const matchedProduct = products.find(p => p.sku.toUpperCase() === flyer.sku.toUpperCase());
+                      const inCart = cart.some(item => item.product.id === matchedProduct?.id);
+
+                      return (
+                        <div 
+                          key={flyer.id} 
+                          className="group bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col transition-all duration-300 hover:shadow-lg hover:border-gray-200/80"
+                        >
+                          {/* Image Box 4:5 aspect */}
+                          <div className="aspect-[4/5] bg-gray-50 relative overflow-hidden group/img border-b border-gray-50">
+                            <img
+                              src={`https://lh3.googleusercontent.com/d/${flyer.imageId}`}
+                              alt={flyer.productName}
+                              className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500"
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                            />
+                            
+                            {/* Overlay Controls */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3.5">
+                              {/* Top row */}
+                              <div className="flex justify-between items-start">
+                                <span className="bg-black/50 backdrop-blur-xs text-white text-[9px] font-black px-2 py-1 rounded-md">
+                                  {flyer.category || 'PROMO'}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleShareFlyer(flyer);
+                                  }}
+                                  className="bg-white/80 backdrop-blur-xs hover:bg-white text-gray-800 p-1.5 rounded-md transition-colors cursor-pointer shadow-md"
+                                  title="Bagikan Gambar"
+                                >
+                                  <Share2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                              
+                              {/* Bottom row */}
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleViewFlyerDetail(flyer.sku)}
+                                  className="flex-1 bg-white hover:bg-gray-100 text-gray-800 text-xs font-extrabold py-2 px-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  Detail
+                                </button>
+                                <button
+                                  onClick={() => handleAddFlyerToCart(flyer.sku)}
+                                  className={`p-2 rounded-xl shadow-md transition-all flex items-center justify-center cursor-pointer ${
+                                    inCart
+                                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                      : 'bg-primary-400 text-primary-900 hover:bg-primary-500'
+                                  }`}
+                                >
+                                  <ShoppingCart className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Standard Static Date Badge */}
+                            <div className="absolute top-2.5 left-2.5 bg-white/95 backdrop-blur-xs border border-gray-100 text-gray-800 text-[9px] font-extrabold px-2 py-1 rounded-lg flex items-center gap-1 shadow-xs group-hover:scale-95 transition-transform">
+                              <Calendar className="w-3 h-3 text-primary-500" />
+                              <span>{flyer.lastUpdateStr ? flyer.lastUpdateStr.split(' ')[0] : 'Promo'}</span>
+                            </div>
+                          </div>
+
+                          {/* Content Card Body */}
+                          <div className="p-3.5 flex-1 flex flex-col justify-between">
+                            <div className="space-y-1">
+                              <h4 
+                                onClick={() => handleViewFlyerDetail(flyer.sku)}
+                                className="text-xs font-bold text-gray-800 line-clamp-2 hover:text-primary-600 transition-colors cursor-pointer"
+                              >
+                                {flyer.productName}
+                              </h4>
+                              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
+                                SKU: {flyer.sku}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-50">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-400 font-semibold">Harga Eceran:</span>
+                                <span className="text-sm font-black text-primary-600">
+                                  {formatRupiah(flyer.price)}
+                                </span>
+                              </div>
+                              
+                              <button
+                                onClick={() => handleAddFlyerToCart(flyer.sku)}
+                                className={`p-2 rounded-xl border transition-all active-tap cursor-pointer lg:hidden ${
+                                  inCart
+                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                    : 'bg-primary-400 text-primary-900 border-primary-400 hover:bg-primary-500'
+                                }`}
+                                title="Tambah ke Keranjang"
+                              >
+                                <ShoppingCart className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Col: Desktop Cart */}
@@ -1360,6 +1768,80 @@ export default function App() {
               >
                 Tetap Tambah
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zoom Flyer Modal */}
+      {selectedFlyer && (
+        <div
+          onClick={() => setSelectedFlyer(null)}
+          className="fixed inset-0 z-[10000] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl relative"
+          >
+            {/* Close */}
+            <button
+              onClick={() => setSelectedFlyer(null)}
+              className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full transition-colors z-10 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            {/* Image container 4:5 */}
+            <div className="aspect-[4/5] bg-gray-50 relative">
+              <img
+                src={`https://lh3.googleusercontent.com/d/${selectedFlyer.imageId}`}
+                alt={selectedFlyer.productName}
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute top-4 left-4 bg-primary-400 text-primary-900 text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Diperbarui: {selectedFlyer.lastUpdateStr}</span>
+              </div>
+              <button
+                onClick={() => handleShareFlyer(selectedFlyer)}
+                className="absolute top-4 right-4 bg-white/80 backdrop-blur-xs hover:bg-white text-gray-800 p-2.5 rounded-full transition-colors z-10 cursor-pointer shadow-lg"
+                title="Bagikan Gambar"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <span className="bg-primary-100 text-primary-800 text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase">
+                {selectedFlyer.category || 'Kategori'}
+              </span>
+              <h3 className="text-lg font-black text-gray-800 mt-2">
+                {selectedFlyer.productName}
+              </h3>
+              <p className="text-xs text-gray-400 mt-1 font-bold">
+                SKU: {selectedFlyer.sku}
+              </p>
+              
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                <div>
+                  <span className="text-xs text-gray-400 font-bold block">Harga:</span>
+                  <span className="text-2xl font-black text-primary-600">
+                    {formatRupiah(selectedFlyer.price)}
+                  </span>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    handleAddFlyerToCart(selectedFlyer.sku);
+                    setSelectedFlyer(null);
+                  }}
+                  className="bg-primary-400 hover:bg-primary-500 text-primary-900 font-extrabold px-6 py-3.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-primary-400/30 transition-all active-tap cursor-pointer text-sm"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Tambah ke Keranjang
+                </button>
+              </div>
             </div>
           </div>
         </div>

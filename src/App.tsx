@@ -495,17 +495,8 @@ export default function App() {
     }
   };
 
-  const handleViewFlyerDetail = (sku: string) => {
-    const product = products.find((p) => p.sku.toUpperCase() === sku.toUpperCase());
-    if (product) {
-      setActiveDetailProduct(product);
-      setIsDetailOpen(true);
-    } else {
-      const flyer = flyers.find((f) => f.sku.toUpperCase() === sku.toUpperCase());
-      if (flyer) {
-        setSelectedFlyer(flyer);
-      }
-    }
+  const handleViewFlyerDetail = (flyer: FlyerCatalogItem) => {
+    setSelectedFlyer(flyer);
   };
 
   const handleAddFlyerToCart = (sku: string) => {
@@ -541,7 +532,7 @@ export default function App() {
   };
 
   const handleShareFlyer = async (flyer: FlyerCatalogItem) => {
-    const imageUrl = `https://lh3.googleusercontent.com/d/${flyer.imageId}=s0`;
+    const imageUrl = `https://lh3.googleusercontent.com/d/${flyer.imageId}`;
 
     // 1. Attempt to use Web Share API with fetch
     if (navigator.share) {
@@ -1157,7 +1148,7 @@ export default function App() {
                       return (
                         <div key={`recent-${flyer.id}`} className="bg-white rounded-xl border border-primary-200/60 p-3 flex gap-3 shadow-xs hover:shadow-md transition-all">
                           <div 
-                            onClick={() => handleViewFlyerDetail(flyer.sku)}
+                            onClick={() => handleViewFlyerDetail(flyer)}
                             className="w-16 h-20 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer relative group border border-gray-100"
                           >
                             <img
@@ -1179,7 +1170,7 @@ export default function App() {
                                 </span>
                               </div>
                               <h4 
-                                onClick={() => handleViewFlyerDetail(flyer.sku)}
+                                onClick={() => handleViewFlyerDetail(flyer)}
                                 className="text-xs font-bold text-gray-800 line-clamp-2 mt-1 cursor-pointer hover:text-primary-600 transition-colors"
                               >
                                 {flyer.productName}
@@ -1271,7 +1262,7 @@ export default function App() {
                               {/* Bottom row */}
                               <div className="flex gap-2">
                                 <button
-                                  onClick={() => handleViewFlyerDetail(flyer.sku)}
+                                  onClick={() => handleViewFlyerDetail(flyer)}
                                   className="flex-1 bg-white hover:bg-gray-100 text-gray-800 text-xs font-extrabold py-2 px-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer"
                                 >
                                   <Eye className="w-3.5 h-3.5" />
@@ -1301,7 +1292,7 @@ export default function App() {
                           <div className="p-3.5 flex-1 flex flex-col justify-between">
                             <div className="space-y-1">
                               <h4 
-                                onClick={() => handleViewFlyerDetail(flyer.sku)}
+                                onClick={() => handleViewFlyerDetail(flyer)}
                                 className="text-xs font-bold text-gray-800 line-clamp-2 hover:text-primary-600 transition-colors cursor-pointer"
                               >
                                 {flyer.productName}
@@ -1796,7 +1787,7 @@ export default function App() {
             {/* Image container 4:5 */}
             <div className="aspect-[4/5] bg-gray-50 relative">
               <img
-                src={`https://lh3.googleusercontent.com/d/${selectedFlyer.imageId}=s0`}
+                src={`https://lh3.googleusercontent.com/d/${selectedFlyer.imageId}`}
                 alt={selectedFlyer.productName}
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"

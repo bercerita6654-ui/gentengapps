@@ -68,10 +68,7 @@ export const getFormattedDate = (): string => {
 };
 
 export const getItemPrice = (item: CartItem): number => {
-  if (item.priceTier === 'custom') {
-    return parseInt(item.customPrice as any) || 0;
-  }
-  return item.product.harga[item.priceTier] || 0;
+  return item.product.harga.eceran || 0;
 };
 
 export const getProductImageUrl = (product: Product | null): string => {

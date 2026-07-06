@@ -1249,7 +1249,7 @@ export default function App() {
                             />
                             
                             {/* Overlay Controls */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3.5">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3.5">
                               {/* Top row */}
                               <div className="flex justify-between items-start">
                                 <span className="bg-black/50 backdrop-blur-xs text-white text-[9px] font-black px-2 py-1 rounded-md">
@@ -1806,7 +1806,7 @@ export default function App() {
               </div>
               <button
                 onClick={() => handleShareFlyer(selectedFlyer)}
-                className="absolute top-4 right-4 bg-white/80 backdrop-blur-xs hover:bg-white text-gray-800 p-2.5 rounded-full transition-colors z-10 cursor-pointer shadow-lg"
+                className="absolute top-4 right-4 bg-white/80 backdrop-blur-xs hover:bg-white text-gray-800 p-2.5 rounded-full transition-colors z-50 cursor-pointer shadow-lg"
                 title="Bagikan Gambar"
               >
                 <Share2 className="w-5 h-5" />

@@ -336,12 +336,8 @@ export default function App() {
     if (!product) return;
 
     const existing = cart.find((item) => item.product.id === productId);
-    const activeTier = catalogTiers[productId] || globalPriceTier;
-    let customPrice = catalogCustomPrices[productId];
-
-    if (customPrice === undefined) {
-      customPrice = product.harga[activeTier] || product.harga.eceran || 0;
-    }
+    const activeTier: PriceTier = 'eceran';
+    const customPrice = product.harga.eceran || 0;
 
     if (existing) {
       setCart(
@@ -667,20 +663,7 @@ export default function App() {
                 </div>
 
                 <div className="flex gap-2 flex-col sm:flex-row w-full xl:w-auto">
-                  {/* Global Price Dropdown */}
-                  <select
-                    value={globalPriceTier}
-                    onChange={(e) => {
-                      const tier = e.target.value as PriceTier;
-                      setGlobalPriceTier(tier);
-                      setCatalogTiers({}); // Clear overrides when global changes
-                    }}
-                    className="w-full sm:w-auto text-sm border border-gray-200 rounded-xl py-2.5 px-3 bg-white text-primary-700 font-bold focus:outline-none focus:ring-2 focus:ring-primary-400 transition-colors cursor-pointer outline-none shadow-xs"
-                  >
-                    <option value="eceran">Semua: Eceran</option>
-                    <option value="grosir">Semua: Grosir</option>
-                    <option value="partai">Semua: Partai</option>
-                  </select>
+
 
                   {availableCategories.length > 0 && (
                     <div className="relative w-full sm:w-36 flex-shrink-0">
@@ -841,45 +824,11 @@ export default function App() {
 
                           {/* Price selector & Cart Button Area */}
                           <div className="mt-auto pt-2 border-t border-gray-50 flex flex-col gap-2">
-                            {/* Compact Select Dropdown */}
-                            <div className="relative">
-                              <select
-                                value={activeTier}
-                                onChange={(e) => updateCatalogPriceTier(product.id, e.target.value as PriceTier)}
-                                className="w-full text-[11px] font-bold text-gray-700 bg-gray-50 border border-gray-200 rounded-lg py-1.5 pl-2 pr-6 cursor-pointer outline-none focus:ring-2 focus:ring-primary-400 transition-colors appearance-none"
-                              >
-                                <option value="eceran">Eceran: {formatRupiah(product.harga.eceran)}</option>
-                                <option value="grosir">Grosir: {formatRupiah(product.harga.grosir)}</option>
-                                <option value="partai">Partai: {formatRupiah(product.harga.partai)}</option>
-                                <option value="custom">Custom</option>
-                              </select>
-                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                                <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                              </div>
-                            </div>
-
-                            {/* Custom Price Field if activeTier is custom */}
-                            {activeTier === 'custom' && (
-                              <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary-400 shadow-xs">
-                                <span className="bg-gray-100 text-gray-500 px-1.5 py-1 text-[10px] font-bold border-r border-gray-300">
-                                  Rp
-                                </span>
-                                <input
-                                  type="number"
-                                  value={activeCustomPrice || ''}
-                                  onChange={(e) => updateCatalogCustomPrice(product.id, e.target.value)}
-                                  className="w-full px-1.5 py-1 text-[11px] font-bold text-gray-800 outline-none"
-                                  placeholder="0"
-                                />
-                              </div>
-                            )}
-
                             {/* Active price display to make it clear */}
-                            <div className="mt-0.5 flex flex-wrap items-baseline gap-0.5">
+                            <div className="mt-1 flex flex-wrap items-baseline gap-1 bg-gray-50/50 p-2 rounded-xl border border-gray-100">
+                              <span className="text-xs font-semibold text-gray-500">Harga:</span>
                               <span className="text-[13px] sm:text-sm font-black text-primary-700 whitespace-nowrap">
-                                {activeTier === 'custom' 
-                                  ? formatRupiah(activeCustomPrice) 
-                                  : formatRupiah(product.harga[activeTier])}
+                                {formatRupiah(product.harga.eceran)}
                                 <span className="text-[10px] sm:text-[11px] text-gray-500 font-bold">/{product.unit}</span>
                               </span>
                             </div>
@@ -1036,32 +985,10 @@ export default function App() {
                       )}
 
                       <div className="flex flex-col gap-3 mt-2">
-                        <div className="flex-1 w-full space-y-2">
-                          <select
-                            value={item.priceTier}
-                            onChange={(e) => updateCartPriceTier(item.product.id, e.target.value as PriceTier)}
-                            className="w-full text-xs font-semibold border border-gray-200 rounded-lg py-2 px-2.5 bg-gray-50 text-gray-700 cursor-pointer focus:ring-2 focus:ring-primary-400 outline-none"
-                          >
-                            <option value="eceran">Harga Eceran ({formatRupiah(item.product.harga.eceran)})</option>
-                            <option value="grosir">Harga Grosir ({formatRupiah(item.product.harga.grosir)})</option>
-                            <option value="partai">Harga Partai ({formatRupiah(item.product.harga.partai)})</option>
-                            <option value="custom">Harga Custom</option>
-                          </select>
-
-                          {item.priceTier === 'custom' && (
-                            <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary-400 shadow-xs">
-                              <span className="bg-gray-100 text-gray-500 px-3 py-1.5 text-xs font-bold border-r border-gray-300">
-                                Rp
-                              </span>
-                              <input
-                                type="number"
-                                value={item.customPrice || ''}
-                                onChange={(e) => updateCustomPrice(item.product.id, e.target.value)}
-                                className="w-full px-2 py-1.5 text-sm font-bold text-gray-800 outline-none"
-                                placeholder="0"
-                              />
-                            </div>
-                          )}
+                        <div className="flex-1 w-full">
+                          <span className="text-xs text-gray-500 font-semibold">
+                            Harga: {formatRupiah(item.product.harga.eceran)} / {item.product.unit}
+                          </span>
                         </div>
 
                         <div className="flex items-center justify-between mt-2">
@@ -1245,32 +1172,10 @@ export default function App() {
                     )}
 
                     <div className="flex flex-col gap-3 mt-2">
-                      <div className="flex-1 w-full space-y-2">
-                        <select
-                          value={item.priceTier}
-                          onChange={(e) => updateCartPriceTier(item.product.id, e.target.value as PriceTier)}
-                          className="w-full text-xs font-semibold border border-gray-200 rounded-lg py-2 px-2.5 bg-gray-50 text-gray-700 cursor-pointer focus:ring-2 focus:ring-primary-400 outline-none"
-                        >
-                          <option value="eceran">Harga Eceran ({formatRupiah(item.product.harga.eceran)})</option>
-                          <option value="grosir">Harga Grosir ({formatRupiah(item.product.harga.grosir)})</option>
-                          <option value="partai">Harga Partai ({formatRupiah(item.product.harga.partai)})</option>
-                          <option value="custom">Harga Custom</option>
-                        </select>
-
-                        {item.priceTier === 'custom' && (
-                          <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary-400 shadow-xs">
-                            <span className="bg-gray-100 text-gray-500 px-3 py-1.5 text-xs font-bold border-r border-gray-300">
-                              Rp
-                            </span>
-                            <input
-                              type="number"
-                              value={item.customPrice || ''}
-                              onChange={(e) => updateCustomPrice(item.product.id, e.target.value)}
-                              className="w-full px-2 py-1.5 text-sm font-bold text-gray-800 outline-none"
-                              placeholder="0"
-                            />
-                          </div>
-                        )}
+                      <div className="flex-1 w-full">
+                        <span className="text-xs text-gray-500 font-semibold">
+                          Harga: {formatRupiah(item.product.harga.eceran)} / {item.product.unit}
+                        </span>
                       </div>
 
                       <div className="flex items-center justify-between">

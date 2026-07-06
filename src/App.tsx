@@ -541,8 +541,10 @@ export default function App() {
   };
 
   const handleShareFlyer = async (flyer: FlyerCatalogItem) => {
+    const imageUrl = `https://lh3.googleusercontent.com/d/${flyer.imageId}=s0`;
     try {
-      const response = await fetch(`https://lh3.googleusercontent.com/d/${flyer.imageId}=s0`);
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error('CORS or fetch failed');
       const blob = await response.blob();
       const file = new File([blob], `${flyer.productName.replace(/ /g, '_')}.jpg`, { type: 'image/jpeg' });
       
@@ -553,7 +555,7 @@ export default function App() {
           text: `Promo: ${flyer.productName} - ${formatRupiah(flyer.price)}`
         });
       } else {
-        showToast('Fitur bagikan langsung tidak didukung, mengunduh gambar...', 'info');
+        showToast('Mengunduh gambar...', 'info');
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -562,8 +564,9 @@ export default function App() {
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error('Error sharing:', error);
-      showToast('Gagal membagikan flyer.', 'error');
+      console.error('Error sharing/downloading:', error);
+      showToast('Gagal membagikan langsung, membuka gambar di tab baru...', 'info');
+      window.open(imageUrl, '_blank');
     }
   };
 

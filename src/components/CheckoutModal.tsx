@@ -165,7 +165,7 @@ export default function CheckoutModal({
                     {item.qty}x {item.product.nama}
                   </p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {item.priceTier.toUpperCase()} @ {formatNumber(getItemPrice(item))}
+                    Harga @ {formatNumber(getItemPrice(item))}
                   </p>
                   {item.note && (
                     <p className="text-xs text-orange-600 font-medium mt-1">

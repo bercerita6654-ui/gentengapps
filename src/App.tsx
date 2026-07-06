@@ -542,32 +542,30 @@ export default function App() {
 
   const handleShareFlyer = async (flyer: FlyerCatalogItem) => {
     const imageUrl = `https://lh3.googleusercontent.com/d/${flyer.imageId}=s0`;
-    try {
-      const response = await fetch(imageUrl);
-      if (!response.ok) throw new Error('CORS or fetch failed');
-      const blob = await response.blob();
-      const file = new File([blob], `${flyer.productName.replace(/ /g, '_')}.jpg`, { type: 'image/jpeg' });
-      
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: flyer.productName,
-          text: `Promo: ${flyer.productName} - ${formatRupiah(flyer.price)}`
-        });
-      } else {
-        showToast('Mengunduh gambar...', 'info');
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        a.click();
-        URL.revokeObjectURL(url);
+
+    // 1. Attempt to use Web Share API with fetch
+    if (navigator.share) {
+      try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `${flyer.productName.replace(/ /g, '_')}.jpg`, { type: 'image/jpeg' });
+        
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: flyer.productName,
+            text: `Promo: ${flyer.productName} - ${formatRupiah(flyer.price)}`
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn('Web Share API failed (likely CORS):', e);
       }
-    } catch (error) {
-      console.error('Error sharing/downloading:', error);
-      showToast('Gagal membagikan langsung, membuka gambar di tab baru...', 'info');
-      window.open(imageUrl, '_blank');
     }
+
+    // 2. Fallback: Open in new tab
+    window.open(imageUrl, '_blank');
+    showToast('Gambar dibuka di tab baru, silakan simpan atau bagikan dari sana.', 'info');
   };
 
   // Save draft / completion helper
@@ -1263,10 +1261,10 @@ export default function App() {
                                     e.stopPropagation();
                                     handleShareFlyer(flyer);
                                   }}
-                                  className="bg-white/80 backdrop-blur-xs hover:bg-white text-gray-800 p-1.5 rounded-md transition-colors cursor-pointer shadow-md"
+                                  className="bg-white/90 backdrop-blur-md hover:bg-white text-gray-900 p-2 rounded-full transition-colors cursor-pointer shadow-lg active:scale-95"
                                   title="Bagikan Gambar"
                                 >
-                                  <Share2 className="w-3.5 h-3.5" />
+                                  <Share2 className="w-5 h-5" />
                                 </button>
                               </div>
                               
@@ -1798,7 +1796,7 @@ export default function App() {
             {/* Image container 4:5 */}
             <div className="aspect-[4/5] bg-gray-50 relative">
               <img
-                src={`https://lh3.googleusercontent.com/d/${selectedFlyer.imageId}`}
+                src={`https://lh3.googleusercontent.com/d/${selectedFlyer.imageId}=s0`}
                 alt={selectedFlyer.productName}
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -1809,10 +1807,10 @@ export default function App() {
               </div>
               <button
                 onClick={() => handleShareFlyer(selectedFlyer)}
-                className="absolute top-4 right-4 bg-white/80 backdrop-blur-xs hover:bg-white text-gray-800 p-2.5 rounded-full transition-colors z-50 cursor-pointer shadow-lg"
+                className="absolute top-4 right-4 bg-white/90 backdrop-blur-md hover:bg-white text-gray-900 p-3 rounded-full transition-colors z-50 cursor-pointer shadow-xl active:scale-95"
                 title="Bagikan Gambar"
               >
-                <Share2 className="w-5 h-5" />
+                <Share2 className="w-6 h-6" />
               </button>
             </div>
 

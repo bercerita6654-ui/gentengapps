@@ -80,31 +80,13 @@ export default function ProductDetailModal({
           </div>
 
           {/* Detail List Harga */}
-          <div className="grid grid-cols-3 gap-3 bg-gray-50/80 p-4 rounded-2xl border border-gray-100">
-            <div className="text-center">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Eceran
-              </span>
-              <p className="text-sm font-black text-gray-800 mt-0.5">
-                {formatRupiah(product.harga.eceran)}
-              </p>
-            </div>
-            <div className="text-center border-x border-gray-200/80">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Grosir
-              </span>
-              <p className="text-sm font-black text-gray-800 mt-0.5">
-                {formatRupiah(product.harga.grosir)}
-              </p>
-            </div>
-            <div className="text-center">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Partai
-              </span>
-              <p className="text-sm font-black text-gray-800 mt-0.5">
-                {formatRupiah(product.harga.partai)}
-              </p>
-            </div>
+          <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100 text-center">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              Harga Produk
+            </span>
+            <p className="text-xl font-black text-primary-700 mt-1">
+              {formatRupiah(product.harga.eceran)} <span className="text-xs text-gray-500 font-semibold">/{product.unit}</span>
+            </p>
           </div>
         </div>
 

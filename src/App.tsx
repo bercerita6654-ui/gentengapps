@@ -553,6 +553,7 @@ export default function App() {
           text: `Promo: ${flyer.productName} - ${formatRupiah(flyer.price)}`
         });
       } else {
+        showToast('Fitur bagikan langsung tidak didukung, mengunduh gambar...', 'info');
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;

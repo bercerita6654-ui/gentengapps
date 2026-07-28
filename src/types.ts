@@ -47,6 +47,7 @@ export interface FlyerCatalogItem {
   merk: string;
   unit: string;
   price: number;
+  grosirPrice: number;
   imageId: string; // row[19] - Gambar Story
   lastUpdateStr: string; // row[20] - Last Update untuk Gambar Story
   lastUpdateDate: Date;

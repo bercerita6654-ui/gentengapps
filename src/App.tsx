@@ -218,6 +218,7 @@ export default function App() {
         const categoriesSet = new Set<string>();
         const brandsSet = new Set<string>();
 
+        const grosirMap: Record<string, number> = {};
         const mappedProducts: Product[] = parsed.slice(1).map((row, idx) => {
           const skuValue = row[0] ? row[0].toString().trim() : '-';
           const barcodeValue = row[1] ? row[1].toString().trim() : '-';
@@ -226,7 +227,12 @@ export default function App() {
           const kategoriValue = row[4] ? row[4].toString().trim() : '-';
           const merkValue = row[6] ? row[6].toString().trim() : '-';
           const eceranPrice = parsePrice(row[10]);
-          const stokValue = parseInt(row[12]) || 0;
+          const grosirPrice = parsePrice(row[11]) || eceranPrice;
+          const stokValue = parseInt(row[13]) || parseInt(row[12]) || 0;
+
+          if (skuValue !== '-') {
+            grosirMap[skuValue.toUpperCase()] = grosirPrice;
+          }
 
           if (kategoriValue && kategoriValue !== '-') {
             categoriesSet.add(kategoriValue);
@@ -248,8 +254,8 @@ export default function App() {
             harga: {
               hpp: 0,
               eceran: eceranPrice,
-              grosir: eceranPrice, // default to eceran as fallback
-              partai: eceranPrice, // default to eceran as fallback
+              grosir: grosirPrice,
+              partai: eceranPrice,
             },
           };
         }).filter(p => p.nama !== '-');
@@ -302,6 +308,7 @@ export default function App() {
                     const parsedDate = parseDateStr(lastUpdateStr);
                     const name = row[2] ? row[2].toString().trim() : '';
                     const price = parsePrice(row[10]);
+                    const grosirPrice = grosirMap[sku] || price;
                     flyerList.push({
                       id: `flyer-${sku}-${i}`,
                       sku: row[0] ? row[0].toString().trim() : '',
@@ -310,6 +317,7 @@ export default function App() {
                       merk: row[6] ? row[6].toString().trim() : '',
                       unit: row[3] ? row[3].toString().trim() : '',
                       price,
+                      grosirPrice,
                       imageId: storyImageId,
                       lastUpdateStr,
                       lastUpdateDate: parsedDate,
@@ -545,7 +553,7 @@ export default function App() {
           await navigator.share({
             files: [file],
             title: flyer.productName,
-            text: `Promo: ${flyer.productName} - ${formatRupiah(flyer.price)}`
+            text: `Promo: ${flyer.productName}\nEceran: ${formatRupiah(flyer.price)}\nGrosir: ${formatRupiah(flyer.grosirPrice)}`
           });
           return;
         }
@@ -556,7 +564,7 @@ export default function App() {
 
     // 2. Fallback: Open in new tab
     window.open(imageUrl, '_blank');
-    showToast('Gambar dibuka di tab baru, silakan simpan atau bagikan dari sana.', 'info');
+    showToast('Gambar dibuka di tab baru, silakan simpan atau bagikan dari sana.', 'success');
   };
 
   // Save draft / completion helper
@@ -964,12 +972,19 @@ export default function App() {
                           {/* Price selector & Cart Button Area */}
                           <div className="mt-auto pt-2 border-t border-gray-50 flex flex-col gap-2">
                             {/* Active price display to make it clear */}
-                            <div className="mt-1 flex flex-wrap items-baseline gap-1 bg-gray-50/50 p-2 rounded-xl border border-gray-100">
-                              <span className="text-xs font-semibold text-gray-500">Harga:</span>
-                              <span className="text-[13px] sm:text-sm font-black text-primary-700 whitespace-nowrap">
-                                {formatRupiah(product.harga.eceran)}
-                                <span className="text-[10px] sm:text-[11px] text-gray-500 font-bold">/{product.unit}</span>
-                              </span>
+                            <div className="mt-1 grid grid-cols-2 gap-1.5 bg-gray-50/50 p-2 rounded-xl border border-gray-100">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-gray-400 font-bold uppercase">Eceran:</span>
+                                <span className="text-xs font-black text-primary-700 whitespace-nowrap">
+                                  {formatRupiah(product.harga.eceran)}
+                                </span>
+                              </div>
+                              <div className="flex flex-col items-end border-l border-gray-200/60 pl-1.5">
+                                <span className="text-[9px] text-emerald-600 font-bold uppercase">Grosir:</span>
+                                <span className="text-xs font-black text-emerald-600 whitespace-nowrap">
+                                  {formatRupiah(product.harga.grosir)}
+                                </span>
+                              </div>
                             </div>
 
                             {/* Cart Action Buttons */}
@@ -1304,9 +1319,15 @@ export default function App() {
 
                             <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-50">
                               <div className="flex flex-col">
-                                <span className="text-[10px] text-gray-400 font-semibold">Harga Eceran:</span>
-                                <span className="text-sm font-black text-primary-600">
+                                <span className="text-[10px] text-gray-400 font-semibold">Eceran:</span>
+                                <span className="text-xs font-black text-primary-600">
                                   {formatRupiah(flyer.price)}
+                                </span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-[10px] text-gray-400 font-semibold">Grosir:</span>
+                                <span className="text-xs font-black text-emerald-600">
+                                  {formatRupiah(flyer.grosirPrice)}
                                 </span>
                               </div>
                               
@@ -1816,20 +1837,28 @@ export default function App() {
                 SKU: {selectedFlyer.sku}
               </p>
               
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                <div>
-                  <span className="text-xs text-gray-400 font-bold block">Harga:</span>
-                  <span className="text-2xl font-black text-primary-600">
-                    {formatRupiah(selectedFlyer.price)}
-                  </span>
+              <div className="mt-6 pt-4 border-t border-gray-100 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                    <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider block">Harga Eceran:</span>
+                    <span className="text-lg font-black text-primary-600">
+                      {formatRupiah(selectedFlyer.price)}
+                    </span>
+                  </div>
+                  <div className="bg-emerald-50/60 p-3 rounded-2xl border border-emerald-100/60">
+                    <span className="text-[10px] text-emerald-700 font-extrabold uppercase tracking-wider block">Harga Grosir:</span>
+                    <span className="text-lg font-black text-emerald-600">
+                      {formatRupiah(selectedFlyer.grosirPrice)}
+                    </span>
+                  </div>
                 </div>
-                
+
                 <button
                   onClick={() => {
                     handleAddFlyerToCart(selectedFlyer.sku);
                     setSelectedFlyer(null);
                   }}
-                  className="bg-primary-400 hover:bg-primary-500 text-primary-900 font-extrabold px-6 py-3.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-primary-400/30 transition-all active-tap cursor-pointer text-sm"
+                  className="w-full bg-primary-400 hover:bg-primary-500 text-primary-900 font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary-400/30 transition-all active-tap cursor-pointer text-sm"
                 >
                   <ShoppingCart className="w-4 h-4" />
                   Tambah ke Keranjang
